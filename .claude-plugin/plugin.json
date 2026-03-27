@@ -1,0 +1,7 @@
+{
+  "name": "claude-notify",
+  "description": "Play sounds when Claude Code finishes a response or pauses for permission",
+  "version": "1.0.0",
+  "license": "MIT",
+  "hooks": "./hooks/hooks.json"
+}
