@@ -14,7 +14,7 @@ A Claude Code plugin that plays sounds when Claude finishes a response or pauses
 ### Option 1: Install script (recommended)
 
 ```bash
-git clone https://github.com/yourusername/claude-notify.git
+git clone https://github.com/hiskuDN/claude-notify.git
 cd claude-notify
 ./install.sh
 ```

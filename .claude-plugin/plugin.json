@@ -3,5 +3,11 @@
   "description": "Play sounds when Claude Code finishes a response or pauses for permission",
   "version": "1.0.0",
   "license": "MIT",
+  "author": {
+    "name": "hiskuDN",
+    "url": "https://github.com/hiskuDN"
+  },
+  "homepage": "https://github.com/hiskuDN/claude-notify",
+  "repository": "https://github.com/hiskuDN/claude-notify",
   "hooks": "./hooks/hooks.json"
 }
