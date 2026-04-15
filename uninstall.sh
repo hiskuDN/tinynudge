@@ -1,52 +1,71 @@
 #!/usr/bin/env bash
-# claude-notify uninstaller
+# tinynudge uninstaller
 
 set -e
 
-INSTALL_DIR="${HOME}/.claude/scripts/claude-notify"
-SETTINGS_FILE="${HOME}/.claude/settings.json"
-NOTIFY_SCRIPT="$INSTALL_DIR/notify.sh"
+INSTALL_DIR="${HOME}/.tinynudge"
+NOTIFY="$INSTALL_DIR/notify.sh"
 
-echo "Uninstalling claude-notify..."
+echo "Uninstalling tinynudge..."
 
-# Remove hooks from settings.json
-if [ -f "$SETTINGS_FILE" ]; then
-  python3 - "$SETTINGS_FILE" "$NOTIFY_SCRIPT" <<'EOF'
-import json
-import sys
+# Remove hooks from Claude Code
+if [[ -f "$HOME/.claude/settings.json" ]]; then
+  python3 - "$HOME/.claude/settings.json" "$NOTIFY" <<'PY'
+import json, sys
+from pathlib import Path
 
-settings_path = sys.argv[1]
-notify_script = sys.argv[2]
-cmds = {f"{notify_script} stop", f"{notify_script} permission"}
-
-with open(settings_path) as f:
-    settings = json.load(f)
-
+path = Path(sys.argv[1])
+notify = sys.argv[2]
+prefix = f"{notify} claude-code"
+settings = json.loads(path.read_text())
 hooks = settings.get("hooks", {})
 for event in list(hooks.keys()):
     hooks[event] = [
-        group for group in hooks[event]
-        if not all(h.get("command") in cmds for h in group.get("hooks", []))
+        g for g in hooks[event]
+        if not all((h.get("command") or "").startswith(prefix) for h in g.get("hooks", []))
     ]
     if not hooks[event]:
         del hooks[event]
-
 if not hooks:
     settings.pop("hooks", None)
-
-with open(settings_path, "w") as f:
-    json.dump(settings, f, indent=2)
-    f.write("\n")
-
-print(f"  Removed hooks from {settings_path}")
-EOF
+path.write_text(json.dumps(settings, indent=2) + "\n")
+print(f"  Cleaned {path}")
+PY
 fi
 
-# Remove installed script
-if [ -d "$INSTALL_DIR" ]; then
+# Remove hooks from Cursor
+if [[ -f "$HOME/.cursor/hooks.json" ]]; then
+  python3 - "$HOME/.cursor/hooks.json" "$NOTIFY" <<'PY'
+import json, sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+notify = sys.argv[2]
+prefix = f"{notify} cursor"
+settings = json.loads(path.read_text())
+hooks = settings.get("hooks", {})
+for event in list(hooks.keys()):
+    hooks[event] = [h for h in hooks[event] if not (h.get("command") or "").startswith(prefix)]
+    if not hooks[event]:
+        del hooks[event]
+if not hooks:
+    settings.pop("hooks", None)
+path.write_text(json.dumps(settings, indent=2) + "\n")
+print(f"  Cleaned {path}")
+PY
+fi
+
+# Remove install dir
+if [[ -d "$INSTALL_DIR" ]]; then
   rm -rf "$INSTALL_DIR"
   echo "  Removed $INSTALL_DIR"
 fi
 
+# Optionally remove the Homebrew-installed binary
+if command -v brew >/dev/null 2>&1 && brew list tinynudge &>/dev/null; then
+  echo ""
+  echo "To remove the tinynudge binary: brew uninstall tinynudge"
+fi
+
 echo ""
-echo "Done! claude-notify has been uninstalled."
+echo "Done."

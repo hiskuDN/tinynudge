@@ -20,37 +20,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build claude-notifier.app
+      - name: Build tinynudge.app
         run: |
-          APP="claude-notifier.app/Contents"
+          APP="tinynudge.app/Contents"
           mkdir -p "$APP/MacOS"
           swiftc \
             notifier/main.swift \
             notifier/Config.swift \
             notifier/Notifier.swift \
             notifier/AppActivator.swift \
-            -o "$APP/MacOS/claude-notifier" \
+            -o "$APP/MacOS/tinynudge" \
             -target ${{ matrix.arch }}-apple-macos12.0 \
             -framework Foundation \
-            -framework UserNotifications \
-            -framework AppKit
+            -framework AppKit \
+            -framework ScriptingBridge
           cp notifier/Info.plist "$APP/Info.plist"
 
       - name: Verify
-        run: file claude-notifier.app/Contents/MacOS/claude-notifier
+        run: file tinynudge.app/Contents/MacOS/tinynudge
 
       - name: Package
         run: |
-          tar czf claude-notifier-${{ matrix.arch }}.tar.gz claude-notifier.app
-          shasum -a 256 claude-notifier-${{ matrix.arch }}.tar.gz \
-            | awk '{print $1}' > claude-notifier-${{ matrix.arch }}.sha256
+          tar czf tinynudge-${{ matrix.arch }}.tar.gz tinynudge.app
+          shasum -a 256 tinynudge-${{ matrix.arch }}.tar.gz \
+            | awk '{print $1}' > tinynudge-${{ matrix.arch }}.sha256
 
       - uses: actions/upload-artifact@v4
         with:
-          name: claude-notifier-${{ matrix.arch }}
+          name: tinynudge-${{ matrix.arch }}
           path: |
-            claude-notifier-${{ matrix.arch }}.tar.gz
-            claude-notifier-${{ matrix.arch }}.sha256
+            tinynudge-${{ matrix.arch }}.tar.gz
+            tinynudge-${{ matrix.arch }}.sha256
 
   release:
     needs: build
@@ -68,7 +68,7 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            claude-notifier-arm64.tar.gz
-            claude-notifier-arm64.sha256
-            claude-notifier-x86_64.tar.gz
-            claude-notifier-x86_64.sha256
+            tinynudge-arm64.tar.gz
+            tinynudge-arm64.sha256
+            tinynudge-x86_64.tar.gz
+            tinynudge-x86_64.sha256

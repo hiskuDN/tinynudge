@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/notify.sh stop"
+            "command": "${CLAUDE_PLUGIN_ROOT}/notify.sh claude-code stop"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/notify.sh permission"
+            "command": "${CLAUDE_PLUGIN_ROOT}/notify.sh claude-code permission"
           }
         ]
       }

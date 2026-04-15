@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.hiskudn.claude-notifier</string>
+    <string>com.hiskudn.tinynudge</string>
     <key>CFBundleName</key>
-    <string>claude-notifier</string>
+    <string>tinynudge</string>
     <key>CFBundleExecutable</key>
-    <string>claude-notifier</string>
+    <string>tinynudge</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>

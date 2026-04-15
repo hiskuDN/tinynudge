@@ -1,20 +1,35 @@
 #!/usr/bin/env bash
-# claude-notify: Cross-platform notification script for Claude Code hooks
-# Usage: notify.sh [stop|permission]
+# tinynudge: Cross-platform notifications for AI coding agent hooks
+# Usage: notify.sh <agent> <event>
+#   agent: claude-code | cursor | gemini | codex | <any name>
+#   event: stop | permission
+# Example: notify.sh claude-code stop
 
-EVENT="${1:-stop}"
+AGENT="${1:-agent}"
+EVENT="${2:-stop}"
 OS="$(uname -s 2>/dev/null || echo Windows)"
 
 # Set to "true" to bring your editor to focus immediately when the notification
 # fires, instead of waiting for you to click it.
-ACTIVATE_IMMEDIATELY="${CLAUDE_NOTIFY_ACTIVATE_IMMEDIATELY:-false}"
+ACTIVATE_IMMEDIATELY="${TINYNUDGE_ACTIVATE_IMMEDIATELY:-false}"
+
+# Pretty-print the agent name for the notification title
+agent_label() {
+  case "$1" in
+    claude-code) echo "Claude Code" ;;
+    cursor)      echo "Cursor" ;;
+    gemini)      echo "Gemini" ;;
+    codex)       echo "Codex" ;;
+    *)           echo "$1" ;;
+  esac
+}
 
 notify_macos() {
   local title="$1"
   local message="$2"
   local sound="$3"
 
-  # Detect terminal app bundle ID for click-to-focus
+  # Detect terminal / editor bundle ID for click-to-focus
   local bundle_id
   case "${TERM_PROGRAM}" in
     vscode)
@@ -33,25 +48,13 @@ notify_macos() {
   local immediately_flag=""
   [[ "${ACTIVATE_IMMEDIATELY}" == "true" ]] && immediately_flag="--activate-immediately"
 
-  # Find claude-notifier: PATH, ~/.local/bin, Homebrew prefix, or ~/Applications
-  local notifier_bin
-  for candidate in \
-    "$(command -v claude-notifier 2>/dev/null)" \
-    "$HOME/.local/bin/claude-notifier" \
-    "$(brew --prefix 2>/dev/null)/bin/claude-notifier" \
-    "$HOME/Applications/claude-notifier.app/Contents/MacOS/claude-notifier"; do
-    if [[ -x "$candidate" ]]; then
-      notifier_bin="$candidate"
-      break
-    fi
-  done
-
-  # Find the .app bundle: Homebrew Cellar, ~/Applications, or next to this script
+  # Find the tinynudge .app bundle: Homebrew Cellar, ~/Applications, or repo
   local app_bundle
   for candidate in \
-    "$(brew --prefix 2>/dev/null)/opt/claude-notifier/claude-notifier.app" \
-    "$HOME/Applications/claude-notifier.app" \
-    "$(dirname "$0")/claude-notifier.app"; do
+    "$(brew --prefix 2>/dev/null)/opt/tinynudge/tinynudge.app" \
+    "$HOME/Applications/tinynudge.app" \
+    "$(dirname "$0")/tinynudge.app" \
+    "$(dirname "$0")/build/tinynudge.app"; do
     if [[ -d "$candidate" ]]; then
       app_bundle="$candidate"
       break
@@ -64,6 +67,7 @@ notify_macos() {
       --title "${title}" --message "${message}" \
       --sound "${sound}" --activate "${bundle_id}" ${immediately_flag}
   else
+    # Fallback: osascript notification + sound (no click-to-focus)
     afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null &
     osascript -e "display notification \"${message}\" with title \"${title}\" sound name \"${sound}\"" 2>/dev/null
   fi
@@ -77,7 +81,7 @@ play_linux() {
   elif command -v aplay >/dev/null 2>&1; then
     aplay -q "$sound_bell" 2>/dev/null
   elif command -v notify-send >/dev/null 2>&1; then
-    notify-send "Claude Code" "Claude needs your attention" 2>/dev/null
+    notify-send "$(agent_label "$AGENT")" "Needs your attention" 2>/dev/null
   fi
 }
 
@@ -88,18 +92,19 @@ play_windows() {
     || powershell -c "[console]::beep(${freq},${dur})" 2>/dev/null
 }
 
+TITLE="$(agent_label "$AGENT")"
+
 case "$OS" in
   Darwin)
     case "$EVENT" in
-      permission) notify_macos "Claude Code" "Waiting for your approval" "Ping" ;;
-      *)          notify_macos "Claude Code" "Done" "Glass" ;;
+      permission) notify_macos "$TITLE" "Waiting for your approval" "Ping" ;;
+      *)          notify_macos "$TITLE" "Done" "Glass" ;;
     esac
     ;;
   Linux)
     play_linux
     ;;
   *)
-    # Windows (Git Bash / WSL)
     case "$EVENT" in
       permission) play_windows 1200 400 ;;
       *)          play_windows 800 600 ;;

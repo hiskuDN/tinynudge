@@ -1,68 +1,78 @@
-# claude-notify
+# tinynudge
 
-A Claude Code plugin that plays sounds when Claude finishes a response or pauses waiting for your permission.
+A tiny notifier for AI coding agents. Get a banner + sound when your agent finishes a task or pauses for your approval, so you can step away without missing anything.
 
-## Sounds
+Works with:
 
-| Event | macOS | Linux | Windows |
-|-------|-------|-------|---------|
-| Claude done | `Glass.aiff` | freedesktop bell | 800Hz beep |
-| Waiting for permission | `Ping.aiff` | freedesktop bell | 1200Hz beep |
+- Claude Code
+- Cursor
+- Gemini CLI *(experimental)*
+- Codex *(experimental)*
+- Any agent with a hooks system — just point it at `notify.sh`
 
-## Installation
+Supports macOS (native Notification Center banners with click-to-focus), Linux (PulseAudio / ALSA / libnotify), and Windows (Git Bash / WSL beeps).
 
-### Option 1: Install script (recommended)
+## Install
 
 ```bash
-git clone https://github.com/hiskuDN/claude-notify.git
-cd claude-notify
+git clone https://github.com/hiskuDN/tinynudge.git
+cd tinynudge
 ./install.sh
 ```
 
-This copies `notify.sh` to `~/.claude/scripts/claude-notify/` and adds the hooks to `~/.claude/settings.json`.
+The installer auto-detects which agents you have configured (`~/.claude`, `~/.cursor`, `~/.gemini`) and wires up their hooks.
 
-### Option 2: Manual
-
-Add to your `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "afplay /System/Library/Sounds/Glass.aiff"
-          }
-        ]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "afplay /System/Library/Sounds/Ping.aiff"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-Replace the `afplay` commands with your platform's sound command (see [Customization](#customization) below).
-
-### Option 3: Claude Code plugin system
-
-If you have the Claude Code plugin system available:
+On macOS it also installs the native `tinynudge.app` via Homebrew tap for click-to-focus banners:
 
 ```bash
-claude --plugin-dir ./claude-notify
+brew install hiskuDN/tap/tinynudge
 ```
+
+Without the binary, macOS falls back to `osascript` notifications (no click-to-focus).
+
+## How it works
+
+Each supported agent has a hooks system. `tinynudge` registers these hooks:
+
+| Agent | Event | What happens |
+|-------|-------|--------------|
+| Claude Code | `Stop` | Banner when the turn ends |
+| Claude Code | `PermissionRequest` | Banner when Claude pauses for approval |
+| Cursor | `stop` | Banner when agent turn ends |
+| Gemini CLI | session end (experimental) | Banner when agent finishes |
+
+The hook calls `notify.sh <agent> <event>`, which plays a sound and shows a banner via:
+
+1. **macOS:** the native `tinynudge.app` binary (click-to-focus routes back to your editor)
+2. **Linux:** `paplay` / `aplay` / `notify-send`
+3. **Windows:** `powershell [console]::beep`
+
+### Click-to-focus (macOS)
+
+When you click the banner, macOS re-launches `tinynudge.app` which detects your terminal / editor and brings it to front via `ScriptingBridge`. We detect:
+
+- Cursor (`com.todesktop.230313mzl4w4u92`) — via `$CURSOR_TRACE_ID`
+- VS Code (`com.microsoft.VSCode`)
+- iTerm2, Warp, Ghostty, Terminal.app
+
+### Immediate focus mode
+
+If you'd rather have your editor come to focus automatically (no click needed):
+
+```bash
+export TINYNUDGE_ACTIVATE_IMMEDIATELY=true
+```
+
+Add that to your shell profile.
+
+## Sounds
+
+| Event | macOS sound | Linux | Windows |
+|-------|-------------|-------|---------|
+| Agent done | `Glass.aiff` | freedesktop bell | 800Hz beep |
+| Waiting for permission | `Ping.aiff` | freedesktop bell | 1200Hz beep |
+
+macOS sounds are anything in `/System/Library/Sounds/` — Basso, Blow, Bottle, Frog, Funk, Glass, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink.
 
 ## Uninstall
 
@@ -70,28 +80,36 @@ claude --plugin-dir ./claude-notify
 ./uninstall.sh
 ```
 
-## Customization
+Removes the hooks from each agent's config and deletes `~/.tinynudge/`. The Homebrew binary can be removed separately: `brew uninstall tinynudge`.
 
-Edit `~/.claude/scripts/claude-notify/notify.sh` to change sounds.
+## Manual setup (if the installer doesn't cover your agent)
 
-**macOS sounds** are in `/System/Library/Sounds/`: Basso, Blow, Bottle, Frog, Funk, Glass, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink.
+Every supported agent just needs a hook that runs `notify.sh <agent-name> <event>`. For example, for Codex (or any other hooks-capable agent):
 
-**Linux**: Replace `paplay` with `notify-send "Claude Code" "Done"` for a desktop notification instead of a sound.
+```json
+{
+  "hooks": {
+    "stop": [
+      {
+        "type": "command",
+        "command": "$HOME/.tinynudge/notify.sh codex stop"
+      }
+    ]
+  }
+}
+```
 
-**Windows**: Adjust the frequency (Hz) and duration (ms) in `play_windows` calls.
+## Development
 
-## How it works
+```bash
+./build.sh            # builds tinynudge.app into build/
+```
 
-Claude Code's [hooks system](https://docs.anthropic.com/en/docs/claude-code/hooks) lets you run shell commands in response to events:
+The Swift source is in `notifier/`. It's a tiny app (~150 lines) built with `swiftc` — no Xcode project, no SPM, no dependencies.
 
-- `Stop` — fires when Claude finishes a response
-- `PermissionRequest` — fires when Claude pauses and needs your approval to proceed
+## Credits
 
-## Requirements
-
-- Claude Code CLI
-- macOS / Linux / Windows (Git Bash or WSL)
-- Python 3 (for the install script only)
+- Architecture for click-routing on macOS (process exits after delivery, macOS re-launches on click) is adapted from [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) by Eloy Durán and Julien Blanchard.
 
 ## License
 

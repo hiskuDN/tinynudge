@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Builds claude-notifier.app and a CLI shim
+# Builds tinynudge.app (macOS notification binary)
 # Usage: ./build.sh [arm64|x86_64]  (defaults to host arch)
 
 set -e
 
 ARCH="${1:-$(uname -m)}"
-APP="build/claude-notifier.app"
+APP="build/tinynudge.app"
 CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
 
-echo "Building claude-notifier ($ARCH)..."
+echo "Building tinynudge ($ARCH)..."
 
 rm -rf build && mkdir -p "$MACOS"
 
@@ -18,13 +18,13 @@ swiftc \
   notifier/Config.swift \
   notifier/Notifier.swift \
   notifier/AppActivator.swift \
-  -o "$MACOS/claude-notifier" \
+  -o "$MACOS/tinynudge" \
   -target "${ARCH}-apple-macos12.0" \
   -framework Foundation \
-  -framework UserNotifications \
-  -framework AppKit
+  -framework AppKit \
+  -framework ScriptingBridge
 
 cp notifier/Info.plist "$CONTENTS/Info.plist"
 
 echo "  Built $APP"
-echo "  Binary: $(file "$MACOS/claude-notifier")"
+echo "  Binary: $(file "$MACOS/tinynudge")"

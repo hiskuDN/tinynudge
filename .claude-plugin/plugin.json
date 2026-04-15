@@ -1,13 +1,13 @@
 {
-  "name": "claude-notify",
-  "description": "Play sounds when Claude Code finishes a response or pauses for permission",
-  "version": "1.0.0",
+  "name": "tinynudge",
+  "description": "Tiny notifier for AI coding agents — banners + sounds when Claude finishes or pauses for permission",
+  "version": "1.1.0",
   "license": "MIT",
   "author": {
     "name": "hiskuDN",
     "url": "https://github.com/hiskuDN"
   },
-  "homepage": "https://github.com/hiskuDN/claude-notify",
-  "repository": "https://github.com/hiskuDN/claude-notify",
+  "homepage": "https://github.com/hiskuDN/tinynudge",
+  "repository": "https://github.com/hiskuDN/tinynudge",
   "hooks": "./hooks/hooks.json"
 }
