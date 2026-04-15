@@ -8,14 +8,10 @@ on:
 jobs:
   build:
     name: Build (${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-15
     strategy:
       matrix:
-        include:
-          - arch: arm64
-            runner: macos-15
-          - arch: x86_64
-            runner: macos-13
+        arch: [arm64, x86_64]
 
     steps:
       - uses: actions/checkout@v4
