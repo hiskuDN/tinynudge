@@ -39,7 +39,9 @@ jobs:
 
       - name: Package
         run: |
-          tar czf tinynudge-${{ matrix.arch }}.tar.gz tinynudge.app
+          mkdir release
+          cp -r tinynudge.app release/
+          tar czf tinynudge-${{ matrix.arch }}.tar.gz release
           shasum -a 256 tinynudge-${{ matrix.arch }}.tar.gz \
             | awk '{print $1}' > tinynudge-${{ matrix.arch }}.sha256
 
