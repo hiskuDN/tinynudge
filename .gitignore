@@ -1,1 +1,4 @@
 .DS_Store
+build/
+claude-notifier
+claude-notifier.app

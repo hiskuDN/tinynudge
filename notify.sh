@@ -5,9 +5,38 @@
 EVENT="${1:-stop}"
 OS="$(uname -s 2>/dev/null || echo Windows)"
 
-play_macos() {
-  local sound="$1"
-  afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null
+notify_macos() {
+  local title="$1"
+  local message="$2"
+  local sound="$3"
+
+  # Detect terminal app bundle ID for click-to-focus
+  local bundle_id
+  case "${TERM_PROGRAM}" in
+    vscode)
+      if [[ -n "${CURSOR_TRACE_ID}" ]]; then
+        bundle_id="com.todesktop.230313mzl4w4u92"  # Cursor
+      else
+        bundle_id="com.microsoft.VSCode"
+      fi
+      ;;
+    iTerm.app)    bundle_id="com.googlecode.iterm2" ;;
+    WarpTerminal) bundle_id="dev.warp.Warp-Stable" ;;
+    ghostty)      bundle_id="com.mitchellh.ghostty" ;;
+    *)            bundle_id="com.apple.Terminal" ;;
+  esac
+
+  if command -v claude-notifier >/dev/null 2>&1; then
+    claude-notifier --title "${title}" --message "${message}" \
+      --sound "${sound}" --activate "${bundle_id}"
+  elif command -v terminal-notifier >/dev/null 2>&1; then
+    afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null &
+    terminal-notifier -title "${title}" -message "${message}" \
+      -sound "${sound}" -activate "${bundle_id}" 2>/dev/null
+  else
+    afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null &
+    osascript -e "display notification \"${message}\" with title \"${title}\" sound name \"${sound}\"" 2>/dev/null
+  fi
 }
 
 play_linux() {
@@ -32,8 +61,8 @@ play_windows() {
 case "$OS" in
   Darwin)
     case "$EVENT" in
-      permission) play_macos "Ping" ;;
-      *)          play_macos "Glass" ;;
+      permission) notify_macos "Claude Code" "Waiting for your approval" "Ping" ;;
+      *)          notify_macos "Claude Code" "Done" "Glass" ;;
     esac
     ;;
   Linux)

@@ -10,6 +10,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Installing claude-notify..."
 
+# macOS: install native notifier binary via Homebrew
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if ! command -v claude-notifier >/dev/null 2>&1; then
+    if command -v brew >/dev/null 2>&1; then
+      echo "  Installing claude-notifier via Homebrew..."
+      brew install hiskuDN/tap/claude-notifier
+    else
+      echo "  Note: Install Homebrew + run 'brew install hiskuDN/tap/claude-notifier'"
+      echo "        for native notifications with click-to-focus. Falling back to osascript."
+    fi
+  else
+    echo "  claude-notifier already installed: $(command -v claude-notifier)"
+  fi
+fi
+
 # Create install directory and copy script
 mkdir -p "$INSTALL_DIR"
 cp "$SCRIPT_DIR/notify.sh" "$INSTALL_DIR/notify.sh"
