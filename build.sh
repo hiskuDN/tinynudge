@@ -26,5 +26,8 @@ swiftc \
 
 cp notifier/Info.plist "$CONTENTS/Info.plist"
 
+mkdir -p "$CONTENTS/Resources"
+cp notifier/Icon.icns "$CONTENTS/Resources/Icon.icns"
+
 echo "  Built $APP"
 echo "  Binary: $(file "$MACOS/tinynudge")"

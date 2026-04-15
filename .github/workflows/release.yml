@@ -35,6 +35,8 @@ jobs:
             -framework AppKit \
             -framework ScriptingBridge
           cp notifier/Info.plist "$APP/Info.plist"
+          mkdir -p "$APP/Resources"
+          cp notifier/Icon.icns "$APP/Resources/Icon.icns"
 
       - name: Verify
         run: file tinynudge.app/Contents/MacOS/tinynudge

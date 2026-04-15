@@ -1,16 +1,22 @@
-# tinynudge
+<div align="center">
+  <img src="assets/logo_full.png" alt="tinynudge" width="300" />
+  <p><strong>A tiny notifier for AI coding agents.</strong></p>
+  <p>Get a banner + sound when your agent finishes a task or pauses for your approval — step away without missing a beat.</p>
+</div>
 
-A tiny notifier for AI coding agents. Get a banner + sound when your agent finishes a task or pauses for your approval, so you can step away without missing anything.
+---
 
-Works with:
+## Supports
 
-- Claude Code
-- Cursor
-- Gemini CLI *(experimental)*
-- Codex *(experimental)*
-- Any agent with a hooks system — just point it at `notify.sh`
+| Agent | Status |
+|-------|--------|
+| Claude Code | ✅ |
+| Cursor | ✅ |
+| Gemini CLI | ✅ *(experimental)* |
+| Codex | ✅ *(experimental)* |
+| Any hooks-capable agent | ✅ — point it at `notify.sh` |
 
-Supports macOS (native Notification Center banners with click-to-focus), Linux (PulseAudio / ALSA / libnotify), and Windows (Git Bash / WSL beeps).
+**Platforms:** macOS (native banners + click-to-focus) · Linux (PulseAudio / ALSA / libnotify) · Windows (Git Bash / WSL)
 
 ## Install
 
@@ -39,17 +45,17 @@ Each supported agent has a hooks system. `tinynudge` registers these hooks:
 | Claude Code | `Stop` | Banner when the turn ends |
 | Claude Code | `PermissionRequest` | Banner when Claude pauses for approval |
 | Cursor | `stop` | Banner when agent turn ends |
-| Gemini CLI | session end (experimental) | Banner when agent finishes |
+| Gemini CLI | session end | Banner when agent finishes |
 
 The hook calls `notify.sh <agent> <event>`, which plays a sound and shows a banner via:
 
-1. **macOS:** the native `tinynudge.app` binary (click-to-focus routes back to your editor)
-2. **Linux:** `paplay` / `aplay` / `notify-send`
-3. **Windows:** `powershell [console]::beep`
+1. **macOS** — the native `tinynudge.app` (click-to-focus routes back to your editor)
+2. **Linux** — `paplay` / `aplay` / `notify-send`
+3. **Windows** — `powershell [console]::beep`
 
 ### Click-to-focus (macOS)
 
-When you click the banner, macOS re-launches `tinynudge.app` which detects your terminal / editor and brings it to front via `ScriptingBridge`. We detect:
+When you click the banner, macOS re-launches `tinynudge.app`, which detects your terminal / editor and brings it to the front via ScriptingBridge. Detected apps:
 
 - Cursor (`com.todesktop.230313mzl4w4u92`) — via `$CURSOR_TRACE_ID`
 - VS Code (`com.microsoft.VSCode`)
@@ -57,7 +63,7 @@ When you click the banner, macOS re-launches `tinynudge.app` which detects your 
 
 ### Immediate focus mode
 
-If you'd rather have your editor come to focus automatically (no click needed):
+If you'd rather have your editor focus automatically — no click needed:
 
 ```bash
 export TINYNUDGE_ACTIVATE_IMMEDIATELY=true
@@ -67,12 +73,12 @@ Add that to your shell profile.
 
 ## Sounds
 
-| Event | macOS sound | Linux | Windows |
-|-------|-------------|-------|---------|
-| Agent done | `Glass.aiff` | freedesktop bell | 800Hz beep |
-| Waiting for permission | `Ping.aiff` | freedesktop bell | 1200Hz beep |
+| Event | macOS | Linux | Windows |
+|-------|-------|-------|---------|
+| Agent done | `Glass.aiff` | freedesktop bell | 800 Hz beep |
+| Waiting for approval | `Ping.aiff` | freedesktop bell | 1200 Hz beep |
 
-macOS sounds are anything in `/System/Library/Sounds/` — Basso, Blow, Bottle, Frog, Funk, Glass, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink.
+Any file from `/System/Library/Sounds/` works on macOS: Basso, Blow, Bottle, Frog, Funk, Glass, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink.
 
 ## Uninstall
 
@@ -80,11 +86,11 @@ macOS sounds are anything in `/System/Library/Sounds/` — Basso, Blow, Bottle, 
 ./uninstall.sh
 ```
 
-Removes the hooks from each agent's config and deletes `~/.tinynudge/`. The Homebrew binary can be removed separately: `brew uninstall tinynudge`.
+Removes the hooks from each agent's config and deletes `~/.tinynudge/`. To also remove the binary: `brew uninstall tinynudge`.
 
-## Manual setup (if the installer doesn't cover your agent)
+## Manual setup
 
-Every supported agent just needs a hook that runs `notify.sh <agent-name> <event>`. For example, for Codex (or any other hooks-capable agent):
+Every supported agent just needs a hook that runs `notify.sh <agent-name> <event>`. Example for Codex (or any other hooks-capable agent):
 
 ```json
 {
@@ -105,11 +111,11 @@ Every supported agent just needs a hook that runs `notify.sh <agent-name> <event
 ./build.sh            # builds tinynudge.app into build/
 ```
 
-The Swift source is in `notifier/`. It's a tiny app (~150 lines) built with `swiftc` — no Xcode project, no SPM, no dependencies.
+The Swift source lives in `notifier/` — ~150 lines, compiled with `swiftc`. No Xcode, no SPM, no dependencies.
 
 ## Credits
 
-- Architecture for click-routing on macOS (process exits after delivery, macOS re-launches on click) is adapted from [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) by Eloy Durán and Julien Blanchard.
+Click-routing architecture (process exits after delivery, macOS re-launches on click) is adapted from [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) by Eloy Durán and Julien Blanchard.
 
 ## License
 

@@ -8,6 +8,8 @@
     <string>tinynudge</string>
     <key>CFBundleExecutable</key>
     <string>tinynudge</string>
+    <key>CFBundleIconFile</key>
+    <string>Icon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleVersion</key>
