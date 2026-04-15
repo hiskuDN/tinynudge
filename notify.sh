@@ -5,9 +5,11 @@
 EVENT="${1:-stop}"
 OS="$(uname -s 2>/dev/null || echo Windows)"
 
-play_macos() {
-  local sound="$1"
-  afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null
+notify_macos() {
+  local title="$1"
+  local message="$2"
+  local sound="$3"
+  osascript -e "display notification \"${message}\" with title \"${title}\" sound name \"${sound}\"" 2>/dev/null
 }
 
 play_linux() {
@@ -32,8 +34,8 @@ play_windows() {
 case "$OS" in
   Darwin)
     case "$EVENT" in
-      permission) play_macos "Ping" ;;
-      *)          play_macos "Glass" ;;
+      permission) notify_macos "Claude Code" "Waiting for your approval" "Ping" ;;
+      *)          notify_macos "Claude Code" "Done" "Glass" ;;
     esac
     ;;
   Linux)
