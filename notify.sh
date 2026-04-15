@@ -5,6 +5,10 @@
 EVENT="${1:-stop}"
 OS="$(uname -s 2>/dev/null || echo Windows)"
 
+# Set to "true" to bring your editor to focus immediately when the notification
+# fires, instead of waiting for you to click it.
+ACTIVATE_IMMEDIATELY="${CLAUDE_NOTIFY_ACTIVATE_IMMEDIATELY:-false}"
+
 notify_macos() {
   local title="$1"
   local message="$2"
@@ -26,13 +30,39 @@ notify_macos() {
     *)            bundle_id="com.apple.Terminal" ;;
   esac
 
-  if command -v claude-notifier >/dev/null 2>&1; then
-    claude-notifier --title "${title}" --message "${message}" \
-      --sound "${sound}" --activate "${bundle_id}"
-  elif command -v terminal-notifier >/dev/null 2>&1; then
-    afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null &
-    terminal-notifier -title "${title}" -message "${message}" \
-      -sound "${sound}" -activate "${bundle_id}" 2>/dev/null
+  local immediately_flag=""
+  [[ "${ACTIVATE_IMMEDIATELY}" == "true" ]] && immediately_flag="--activate-immediately"
+
+  # Find claude-notifier: PATH, ~/.local/bin, Homebrew prefix, or ~/Applications
+  local notifier_bin
+  for candidate in \
+    "$(command -v claude-notifier 2>/dev/null)" \
+    "$HOME/.local/bin/claude-notifier" \
+    "$(brew --prefix 2>/dev/null)/bin/claude-notifier" \
+    "$HOME/Applications/claude-notifier.app/Contents/MacOS/claude-notifier"; do
+    if [[ -x "$candidate" ]]; then
+      notifier_bin="$candidate"
+      break
+    fi
+  done
+
+  # Find the .app bundle: Homebrew Cellar, ~/Applications, or next to this script
+  local app_bundle
+  for candidate in \
+    "$(brew --prefix 2>/dev/null)/opt/claude-notifier/claude-notifier.app" \
+    "$HOME/Applications/claude-notifier.app" \
+    "$(dirname "$0")/claude-notifier.app"; do
+    if [[ -d "$candidate" ]]; then
+      app_bundle="$candidate"
+      break
+    fi
+  done
+
+  if [[ -n "$app_bundle" ]]; then
+    # Launch via `open -a` so LaunchServices registers it — required for click-to-focus
+    open -a "$app_bundle" --args \
+      --title "${title}" --message "${message}" \
+      --sound "${sound}" --activate "${bundle_id}" ${immediately_flag}
   else
     afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null &
     osascript -e "display notification \"${message}\" with title \"${title}\" sound name \"${sound}\"" 2>/dev/null

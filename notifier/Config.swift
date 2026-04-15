@@ -5,6 +5,7 @@ struct Config {
     var message: String = "Done"
     var sound: String = "Glass"
     var activateBundleID: String? = nil
+    var activateImmediately: Bool = false
     var timeout: TimeInterval = 5.0
 
     init() {
@@ -20,6 +21,8 @@ struct Config {
                 i += 1; if i < args.count { sound = args[i] }
             case "--activate":
                 i += 1; if i < args.count { activateBundleID = args[i] }
+            case "--activate-immediately":
+                activateImmediately = true
             case "--timeout":
                 i += 1; if i < args.count { timeout = Double(args[i]) ?? timeout }
             default:

@@ -16,6 +16,8 @@
     <string>1.1.0</string>
     <key>LSUIElement</key>
     <true/>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
     <key>NSUserNotificationAlertStyle</key>
     <string>alert</string>
 </dict>

@@ -1,82 +1,68 @@
 import Foundation
-import UserNotifications
 import AppKit
 
-class Notifier: NSObject, UNUserNotificationCenterDelegate {
+class Notifier: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegate {
 
     private let config: Config
 
     init(config: Config) {
         self.config = config
         super.init()
-        // Delegate must be set before requestAuthorization
-        UNUserNotificationCenter.current().delegate = self
     }
 
-    func run() {
-        requestPermissionAndNotify()
-        RunLoop.main.run(until: Date(timeIntervalSinceNow: config.timeout))
-        exit(0)
-    }
+    // MARK: - NSApplicationDelegate
 
-    private func requestPermissionAndNotify() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            if granted {
-                self.sendNotification()
-            } else {
-                self.playFallbackSound()
-                exit(0)
-            }
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // If we were launched because the user clicked a previous notification,
+        // macOS gives us the notification here. Handle it and exit.
+        if let userNotification = notification.userInfo?[NSApplication.launchUserNotificationUserInfoKey]
+            as? NSUserNotification {
+            userActivated(userNotification)
+            return
         }
-    }
 
-    private func sendNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = config.title
-        content.body = config.message
-        content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: config.sound))
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: "claude-notifier-\(UUID().uuidString)",
-            content: content,
-            trigger: trigger
-        )
-
-        UNUserNotificationCenter.current().add(request) { error in
-            if error != nil { exit(1) }
+        // Option B: activate target app immediately, no click needed
+        if config.activateImmediately, let bundleID = config.activateBundleID {
+            AppActivator.activate(bundleID: bundleID)
+            exit(0)
         }
-    }
 
-    private func playFallbackSound() {
-        let task = Process()
-        task.launchPath = "/usr/bin/afplay"
-        task.arguments = ["/System/Library/Sounds/\(config.sound).aiff"]
-        try? task.run()
-        task.waitUntilExit()
-    }
+        NSUserNotificationCenter.default.delegate = self
 
-    // MARK: - UNUserNotificationCenterDelegate
-
-    // Required: allows banner to show even when this process is considered "foreground"
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler handler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        handler([.banner, .sound])
-    }
-
-    // Called when the user clicks the notification
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse,
-        withCompletionHandler handler: @escaping () -> Void
-    ) {
+        let n = NSUserNotification()
+        n.title = config.title
+        n.informativeText = config.message
+        n.soundName = config.sound
         if let bundleID = config.activateBundleID {
+            n.userInfo = ["activateBundleID": bundleID]
+        }
+        NSUserNotificationCenter.default.deliver(n)
+    }
+
+    private func userActivated(_ notification: NSUserNotification) {
+        NSUserNotificationCenter.default.removeDeliveredNotification(notification)
+        if let bundleID = notification.userInfo?["activateBundleID"] as? String {
             AppActivator.activate(bundleID: bundleID)
         }
-        handler()
         exit(0)
+    }
+
+    // MARK: - NSUserNotificationCenterDelegate
+
+    func userNotificationCenter(_ center: NSUserNotificationCenter,
+                                shouldPresent notification: NSUserNotification) -> Bool {
+        return true
+    }
+
+    // Exit right after delivery — macOS will re-launch us on click
+    func userNotificationCenter(_ center: NSUserNotificationCenter,
+                                didDeliver notification: NSUserNotification) {
+        exit(0)
+    }
+
+    // If the user clicks while we're still running
+    func userNotificationCenter(_ center: NSUserNotificationCenter,
+                                didActivate notification: NSUserNotification) {
+        userActivated(notification)
     }
 }

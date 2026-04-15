@@ -1,10 +1,11 @@
 import AppKit
+import ScriptingBridge
 
 struct AppActivator {
     static func activate(bundleID: String) {
-        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-        if let app = apps.first {
-            app.activate(options: .activateIgnoringOtherApps)
+        // ScriptingBridge is what terminal-notifier uses — more reliable than NSRunningApplication
+        if let app = SBApplication(bundleIdentifier: bundleID) {
+            app.activate()
         }
     }
 }

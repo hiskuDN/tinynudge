@@ -1,9 +1,8 @@
 import AppKit
-import Foundation
 
 let app = NSApplication.shared
-app.setActivationPolicy(.prohibited)  // no Dock icon
+app.setActivationPolicy(.prohibited)
 
-let config = Config()
-let notifier = Notifier(config: config)
-notifier.run()
+let notifier = Notifier(config: Config())
+app.delegate = notifier
+app.run()
