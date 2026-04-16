@@ -21,8 +21,7 @@ swiftc \
   -o "$MACOS/tinynudge" \
   -target "${ARCH}-apple-macos12.0" \
   -framework Foundation \
-  -framework AppKit \
-  -framework ScriptingBridge
+  -framework AppKit
 
 cp notifier/Info.plist "$CONTENTS/Info.plist"
 

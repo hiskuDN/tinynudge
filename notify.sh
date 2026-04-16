@@ -45,8 +45,36 @@ notify_macos() {
     *)            bundle_id="com.apple.Terminal" ;;
   esac
 
-  local immediately_flag=""
-  [[ "${ACTIVATE_IMMEDIATELY}" == "true" ]] && immediately_flag="--activate-immediately"
+  # Suppress banner if the target app already has focus — just play sound
+  local frontmost_id
+  frontmost_id=$(osascript -e "id of app (path to frontmost application as text)" 2>/dev/null)
+  if [[ "$frontmost_id" == "$bundle_id" ]]; then
+    afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null
+    return
+  fi
+
+  # Map bundle ID → System Events process name for window-title capture
+  local process_name
+  case "$bundle_id" in
+    com.todesktop.230313mzl4w4u92) process_name="Cursor" ;;
+    com.microsoft.VSCode)           process_name="Code" ;;
+    com.googlecode.iterm2)          process_name="iTerm2" ;;
+    dev.warp.Warp-Stable)           process_name="Warp" ;;
+    com.mitchellh.ghostty)          process_name="Ghostty" ;;
+    com.apple.Terminal)             process_name="Terminal" ;;
+    *)                              process_name="" ;;
+  esac
+
+  # Capture the frontmost window title so we can raise the exact window on click
+  local win_title=""
+  if [[ -n "$process_name" ]]; then
+    win_title=$(osascript \
+      -e "tell application \"System Events\"" \
+      -e "  tell process \"${process_name}\"" \
+      -e "    get title of first window whose value of attribute \"AXMain\" is true" \
+      -e "  end tell" \
+      -e "end tell" 2>/dev/null)
+  fi
 
   # Find the tinynudge .app bundle: Homebrew Cellar, ~/Applications, or repo
   local app_bundle
@@ -62,10 +90,16 @@ notify_macos() {
   done
 
   if [[ -n "$app_bundle" ]]; then
+    # Build args array — avoids quoting hazards with window titles containing spaces
+    local open_args=(
+      --args
+      --title "${title}" --message "${message}"
+      --sound "${sound}" --activate "${bundle_id}"
+    )
+    [[ "${ACTIVATE_IMMEDIATELY}" == "true" ]] && open_args+=(--activate-immediately)
+    [[ -n "$win_title" ]] && open_args+=(--window-title "${win_title}")
     # Launch via `open -a` so LaunchServices registers it — required for click-to-focus
-    open -a "$app_bundle" --args \
-      --title "${title}" --message "${message}" \
-      --sound "${sound}" --activate "${bundle_id}" ${immediately_flag}
+    open -a "$app_bundle" "${open_args[@]}"
   else
     # Fallback: osascript notification + sound (no click-to-focus)
     afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null &
