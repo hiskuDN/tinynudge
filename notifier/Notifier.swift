@@ -23,7 +23,7 @@ class Notifier: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegat
 
         // Option B: activate target app immediately, no click needed
         if config.activateImmediately, let bundleID = config.activateBundleID {
-            AppActivator.activate(bundleID: bundleID)
+            AppActivator.activate(bundleID: bundleID, windowTitle: config.windowTitle)
             exit(0)
         }
 
@@ -33,16 +33,18 @@ class Notifier: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegat
         n.title = config.title
         n.informativeText = config.message
         n.soundName = config.sound
-        if let bundleID = config.activateBundleID {
-            n.userInfo = ["activateBundleID": bundleID]
-        }
+        var userInfo: [String: String] = [:]
+        if let bundleID = config.activateBundleID { userInfo["activateBundleID"] = bundleID }
+        if let windowTitle = config.windowTitle { userInfo["windowTitle"] = windowTitle }
+        if !userInfo.isEmpty { n.userInfo = userInfo }
         NSUserNotificationCenter.default.deliver(n)
     }
 
     private func userActivated(_ notification: NSUserNotification) {
         NSUserNotificationCenter.default.removeDeliveredNotification(notification)
         if let bundleID = notification.userInfo?["activateBundleID"] as? String {
-            AppActivator.activate(bundleID: bundleID)
+            let windowTitle = notification.userInfo?["windowTitle"] as? String
+            AppActivator.activate(bundleID: bundleID, windowTitle: windowTitle)
         }
         exit(0)
     }
