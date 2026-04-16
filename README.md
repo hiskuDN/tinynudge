@@ -20,21 +20,24 @@
 
 ## Install
 
+### macOS (recommended)
+
+```bash
+brew install hiskuDN/tap/tinynudge
+tinynudge-setup
+```
+
+`brew install` gets you the native app. `tinynudge-setup` auto-detects your agents (`~/.claude`, `~/.cursor`) and wires their hooks.
+
+### All platforms / manual
+
 ```bash
 git clone https://github.com/hiskuDN/tinynudge.git
 cd tinynudge
 ./install.sh
 ```
 
-The installer auto-detects which agents you have configured (`~/.claude`, `~/.cursor`, `~/.gemini`) and wires up their hooks.
-
-On macOS it also installs the native `tinynudge.app` via Homebrew tap for click-to-focus banners:
-
-```bash
-brew install hiskuDN/tap/tinynudge
-```
-
-Without the binary, macOS falls back to `osascript` notifications (no click-to-focus).
+The installer auto-detects agents and wires hooks. On macOS it will also prompt you to install the native binary via Homebrew if you haven't already.
 
 ## How it works
 
@@ -55,11 +58,12 @@ The hook calls `notify.sh <agent> <event>`, which plays a sound and shows a bann
 
 ### Click-to-focus (macOS)
 
-When you click the banner, macOS re-launches `tinynudge.app`, which detects your terminal / editor and brings it to the front via ScriptingBridge. Detected apps:
+When you click the banner, `tinynudge.app` uses System Events to raise the exact window that triggered the notification — even if you have multiple Cursor or terminal windows open. Supported apps:
 
-- Cursor (`com.todesktop.230313mzl4w4u92`) — via `$CURSOR_TRACE_ID`
-- VS Code (`com.microsoft.VSCode`)
+- Cursor, VS Code
 - iTerm2, Warp, Ghostty, Terminal.app
+
+If the target app is already in focus when the notification fires, the banner is suppressed and only the sound plays.
 
 ### Immediate focus mode
 
@@ -86,7 +90,7 @@ Any file from `/System/Library/Sounds/` works on macOS: Basso, Blow, Bottle, Fro
 ./uninstall.sh
 ```
 
-Removes the hooks from each agent's config and deletes `~/.tinynudge/`. To also remove the binary: `brew uninstall tinynudge`.
+Removes hooks from each agent's config and deletes `~/.tinynudge/`. To also remove the binary: `brew uninstall tinynudge`.
 
 ## Manual setup
 
@@ -111,7 +115,7 @@ Every supported agent just needs a hook that runs `notify.sh <agent-name> <event
 ./build.sh            # builds tinynudge.app into build/
 ```
 
-The Swift source lives in `notifier/` — ~150 lines, compiled with `swiftc`. No Xcode, no SPM, no dependencies.
+The Swift source lives in `notifier/` — ~200 lines, compiled with `swiftc`. No Xcode, no SPM, no dependencies.
 
 ## Credits
 
