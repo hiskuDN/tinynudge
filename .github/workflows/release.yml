@@ -28,8 +28,7 @@ jobs:
             -o "$APP/MacOS/tinynudge" \
             -target ${{ matrix.arch }}-apple-macos12.0 \
             -framework Foundation \
-            -framework AppKit \
-            -framework ScriptingBridge
+            -framework AppKit
           cp notifier/Info.plist "$APP/Info.plist"
           mkdir -p "$APP/Resources"
           cp notifier/Icon.icns "$APP/Resources/Icon.icns"
@@ -73,3 +72,35 @@ jobs:
             tinynudge-arm64.sha256
             tinynudge-x86_64.tar.gz
             tinynudge-x86_64.sha256
+
+      - name: Update Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARM_SHA=$(cat tinynudge-arm64.sha256)
+          X86_SHA=$(cat tinynudge-x86_64.sha256)
+
+          git clone https://x-access-token:${GH_TOKEN}@github.com/hiskuDN/homebrew-tap.git
+          cd homebrew-tap
+
+          sed -i "s/version \".*\"/version \"${VERSION}\"/" Formula/tinynudge.rb
+          sed -i "s|releases/download/v[^/]*/tinynudge-arm64|releases/download/v${VERSION}/tinynudge-arm64|" Formula/tinynudge.rb
+          sed -i "s|releases/download/v[^/]*/tinynudge-x86_64|releases/download/v${VERSION}/tinynudge-x86_64|" Formula/tinynudge.rb
+
+          # Update SHA256s — arm64 comes before x86_64 in the formula
+          awk -v arm="$ARM_SHA" -v x86="$X86_SHA" '
+            /on_arm/    { in_arm=1 }
+            /on_intel/  { in_arm=0; in_x86=1 }
+            /end/        { in_arm=0; in_x86=0 }
+            in_arm && /sha256/ { sub(/"[a-f0-9]+"/, "\"" arm "\"") }
+            in_x86 && /sha256/ { sub(/"[a-f0-9]+"/, "\"" x86 "\"") }
+            { print }
+          ' Formula/tinynudge.rb > Formula/tinynudge.rb.tmp
+          mv Formula/tinynudge.rb.tmp Formula/tinynudge.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/tinynudge.rb
+          git commit -m "tinynudge v${VERSION}"
+          git push
