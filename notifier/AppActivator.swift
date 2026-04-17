@@ -18,31 +18,42 @@ struct AppActivator {
     ]
 
     static func activate(bundleID: String, windowTitle: String? = nil,
-                         ipcHook: String? = nil, projectPath: String? = nil) {
+                         ipcHook: String? = nil, projectPath: String? = nil,
+                         sendApproval: Bool = false) {
         let folder = windowTitle ?? projectPath.map { ($0 as NSString).lastPathComponent }
         let proc = processName[bundleID]
 
-        // For Cursor/VSCode: activate the app first so it becomes the frontmost process,
-        // then run the CLI via do shell script (full user shell env). This order matters:
-        // cursor CLI calls window.focus() → makeKeyAndOrderFront:, which only works
-        // when the app is already active. Reversing the order (CLI then activate) means
-        // the window.focus() is silently ignored while the app isn't frontmost.
+        // Cursor/VSCode: use the CLI to switch the internal active window, then bring it
+        // to front. Two separate AppleScripts because `do shell script` doesn't need
+        // Automation permission while `tell application "System Events"` does.
         if let path = projectPath, !path.isEmpty,
            let cli = findCLI(for: bundleID),
            let procName = proc {
             let escapedCLI  = cli.replacingOccurrences(of: "'", with: "'\\''")
             let escapedPath = path.replacingOccurrences(of: "'", with: "'\\''")
-            let script = """
-            tell application "\(procName)" to activate
-            delay 0.4
-            do shell script "'\(escapedCLI)' --reuse-window '\(escapedPath)'"
-            """
+            let trusted = AXIsProcessTrusted()
+
+            // Step 1: activate app + switch window via CLI (no Automation needed)
             var err: NSDictionary?
-            NSAppleScript(source: script)?.executeAndReturnError(&err)
+            NSAppleScript(source: """
+                tell application "\(procName)" to activate
+                delay 0.4
+                do shell script "'\(escapedCLI)' --reuse-window '\(escapedPath)'"
+            """)?.executeAndReturnError(&err)
+
+            // Step 2: set frontmost + optionally press Enter (requires Automation for System Events)
+            let pressEnter = sendApproval && trusted
+            var err2: NSDictionary?
+            NSAppleScript(source: """
+                tell application "System Events"
+                    set frontmost of process "\(procName)" to true
+                    \(pressEnter ? "delay 0.3\nkey code 36" : "")
+                end tell
+            """)?.executeAndReturnError(&err2)
             return
         }
 
-        // Fallback: activate then AXRaise with retries (works for native apps).
+        // Fallback: activate then AXRaise with retries (works for native terminal apps).
         // Retry schedule from claude-notifications-go: 150ms → 250ms → 400ms.
         guard let app = NSRunningApplication
             .runningApplications(withBundleIdentifier: bundleID).first else { return }
@@ -70,7 +81,7 @@ struct AppActivator {
         return searchPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    // MARK: - AX window raise (native apps / fallback)
+    // MARK: - AX window raise (native terminal apps / fallback)
 
     @discardableResult
     private static func raiseWindow(pid: pid_t, containingTitle title: String) -> Bool {

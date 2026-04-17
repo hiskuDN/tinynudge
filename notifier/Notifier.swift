@@ -53,8 +53,10 @@ class Notifier: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegat
             let windowTitle = notification.userInfo?["windowTitle"] as? String
             let ipcHook = notification.userInfo?["ipcHook"] as? String
             let projectPath = notification.userInfo?["projectPath"] as? String
+            let approved = notification.activationType == .actionButtonClicked
             AppActivator.activate(bundleID: bundleID, windowTitle: windowTitle,
-                                  ipcHook: ipcHook, projectPath: projectPath)
+                                  ipcHook: ipcHook, projectPath: projectPath,
+                                  sendApproval: approved)
         }
         exit(0)
     }
