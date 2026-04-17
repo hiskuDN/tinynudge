@@ -115,6 +115,7 @@ notify_macos() {
     [[ -n "$win_title" ]] && open_args+=(--window-title "${project_name}")
     [[ -n "${VSCODE_IPC_HOOK_CLI}" ]] && open_args+=(--ipc-hook "${VSCODE_IPC_HOOK_CLI}")
     open_args+=(--project-path "${PWD}")
+    [[ "${EVENT}" == "permission" ]] && open_args+=(--has-action-button)
     # Launch via `open -a` so LaunchServices registers it — required for click-to-focus
     open -a "$app_bundle" "${open_args[@]}"
   else

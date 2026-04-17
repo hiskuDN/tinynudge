@@ -10,6 +10,7 @@ struct Config {
     var ipcHook: String? = nil
     var projectPath: String? = nil
     var timeout: TimeInterval = 30.0
+    var hasActionButton: Bool = false
 
     init() {
         let args = Array(CommandLine.arguments.dropFirst())
@@ -32,6 +33,8 @@ struct Config {
                 i += 1; if i < args.count { ipcHook = args[i] }
             case "--project-path":
                 i += 1; if i < args.count { projectPath = args[i] }
+            case "--has-action-button":
+                hasActionButton = true
             case "--timeout":
                 i += 1; if i < args.count { timeout = Double(args[i]) ?? timeout }
             default:

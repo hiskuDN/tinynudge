@@ -34,6 +34,10 @@ class Notifier: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegat
         n.title = config.title
         n.informativeText = config.message
         n.soundName = config.sound
+        if config.hasActionButton {
+            n.hasActionButton = true
+            n.actionButtonTitle = "Allow"
+        }
         var userInfo: [String: String] = [:]
         if let bundleID = config.activateBundleID { userInfo["activateBundleID"] = bundleID }
         if let windowTitle = config.windowTitle { userInfo["windowTitle"] = windowTitle }
