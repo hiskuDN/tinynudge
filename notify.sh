@@ -45,14 +45,6 @@ notify_macos() {
     *)            bundle_id="com.apple.Terminal" ;;
   esac
 
-  # Suppress banner if the target app already has focus — just play sound
-  local frontmost_id
-  frontmost_id=$(osascript -e "id of app (path to frontmost application as text)" 2>/dev/null)
-  if [[ "$frontmost_id" == "$bundle_id" ]]; then
-    afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null
-    return
-  fi
-
   # Map bundle ID → System Events process name for window-title capture
   local process_name
   case "$bundle_id" in
@@ -65,15 +57,38 @@ notify_macos() {
     *)                              process_name="" ;;
   esac
 
-  # Capture the frontmost window title so we can raise the exact window on click
+  # Identify the source window by matching the project name ($PWD basename)
+  # to window titles. This lets us suppress and focus the right window even
+  # when multiple windows of the same app are open.
   local win_title=""
   if [[ -n "$process_name" ]]; then
+    local project_name
+    project_name=$(basename "$PWD")
     win_title=$(osascript \
       -e "tell application \"System Events\"" \
       -e "  tell process \"${process_name}\"" \
-      -e "    get title of first window whose value of attribute \"AXMain\" is true" \
+      -e "    try" \
+      -e "      get title of first window whose title contains \"${project_name}\"" \
+      -e "    end try" \
       -e "  end tell" \
       -e "end tell" 2>/dev/null)
+  fi
+
+  # Suppress banner only if the exact source window is currently frontmost
+  local frontmost_id
+  frontmost_id=$(osascript -e "id of app (path to frontmost application as text)" 2>/dev/null)
+  if [[ "$frontmost_id" == "$bundle_id" && -n "$process_name" && -n "$win_title" ]]; then
+    local frontmost_win
+    frontmost_win=$(osascript \
+      -e "tell application \"System Events\"" \
+      -e "  tell process \"${process_name}\"" \
+      -e "    get title of window 1" \
+      -e "  end tell" \
+      -e "end tell" 2>/dev/null)
+    if [[ "$frontmost_win" == "$win_title" ]]; then
+      afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null
+      return
+    fi
   fi
 
   # Find the tinynudge .app bundle: Homebrew Cellar, ~/Applications, or repo
@@ -97,7 +112,9 @@ notify_macos() {
       --sound "${sound}" --activate "${bundle_id}"
     )
     [[ "${ACTIVATE_IMMEDIATELY}" == "true" ]] && open_args+=(--activate-immediately)
-    [[ -n "$win_title" ]] && open_args+=(--window-title "${win_title}")
+    [[ -n "$win_title" ]] && open_args+=(--window-title "${project_name}")
+    [[ -n "${VSCODE_IPC_HOOK_CLI}" ]] && open_args+=(--ipc-hook "${VSCODE_IPC_HOOK_CLI}")
+    open_args+=(--project-path "${PWD}")
     # Launch via `open -a` so LaunchServices registers it — required for click-to-focus
     open -a "$app_bundle" "${open_args[@]}"
   else

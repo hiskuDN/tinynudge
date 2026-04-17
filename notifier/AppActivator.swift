@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 
 struct AppActivator {
 
@@ -11,30 +12,90 @@ struct AppActivator {
         "com.apple.Terminal":             "Terminal",
     ]
 
-    static func activate(bundleID: String, windowTitle: String? = nil) {
-        if let title = windowTitle, !title.isEmpty,
-           let proc = processName[bundleID] {
-            raiseWindow(processName: proc, title: title)
+    private static let cliName: [String: String] = [
+        "com.todesktop.230313mzl4w4u92": "cursor",
+        "com.microsoft.VSCode":           "code",
+    ]
+
+    static func activate(bundleID: String, windowTitle: String? = nil,
+                         ipcHook: String? = nil, projectPath: String? = nil) {
+        let folder = windowTitle ?? projectPath.map { ($0 as NSString).lastPathComponent }
+        let proc = processName[bundleID]
+
+        // For Cursor/VSCode: activate the app first so it becomes the frontmost process,
+        // then run the CLI via do shell script (full user shell env). This order matters:
+        // cursor CLI calls window.focus() → makeKeyAndOrderFront:, which only works
+        // when the app is already active. Reversing the order (CLI then activate) means
+        // the window.focus() is silently ignored while the app isn't frontmost.
+        if let path = projectPath, !path.isEmpty,
+           let cli = findCLI(for: bundleID),
+           let procName = proc {
+            let escapedCLI  = cli.replacingOccurrences(of: "'", with: "'\\''")
+            let escapedPath = path.replacingOccurrences(of: "'", with: "'\\''")
+            let script = """
+            tell application "\(procName)" to activate
+            delay 0.4
+            do shell script "'\(escapedCLI)' --reuse-window '\(escapedPath)'"
+            """
+            var err: NSDictionary?
+            NSAppleScript(source: script)?.executeAndReturnError(&err)
+            return
         }
-        NSRunningApplication
-            .runningApplications(withBundleIdentifier: bundleID)
-            .first?
-            .activate(options: [.activateIgnoringOtherApps])
+
+        // Fallback: activate then AXRaise with retries (works for native apps).
+        // Retry schedule from claude-notifications-go: 150ms → 250ms → 400ms.
+        guard let app = NSRunningApplication
+            .runningApplications(withBundleIdentifier: bundleID).first else { return }
+        app.activate(options: [.activateIgnoringOtherApps])
+
+        if let title = folder, !title.isEmpty {
+            let pid = app.processIdentifier
+            for delay in [0.15, 0.25, 0.40] {
+                Thread.sleep(forTimeInterval: delay)
+                if raiseWindow(pid: pid, containingTitle: title) { break }
+            }
+        }
     }
 
-    private static func raiseWindow(processName: String, title: String) {
-        let escaped = title.replacingOccurrences(of: "\"", with: "\\\"")
-        let src = """
-        tell application "System Events"
-            tell process "\(processName)"
-                try
-                    set w to first window whose title contains "\(escaped)"
-                    perform action "AXRaise" of w
-                end try
-            end tell
-        end tell
-        """
-        var err: NSDictionary?
-        NSAppleScript(source: src)?.executeAndReturnError(&err)
+    // MARK: - CLI discovery
+
+    private static func findCLI(for bundleID: String) -> String? {
+        guard let name = cliName[bundleID] else { return nil }
+        let searchPaths = [
+            "/usr/local/bin/\(name)",
+            "/usr/bin/\(name)",
+            "/opt/homebrew/bin/\(name)",
+            "\(NSHomeDirectory())/.local/bin/\(name)",
+        ]
+        return searchPaths.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    // MARK: - AX window raise (native apps / fallback)
+
+    @discardableResult
+    private static func raiseWindow(pid: pid_t, containingTitle title: String) -> Bool {
+        let appElement = AXUIElementCreateApplication(pid)
+
+        var windowsRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appElement,
+                                            kAXWindowsAttribute as CFString,
+                                            &windowsRef) == .success,
+              let windows = windowsRef as? [AXUIElement] else { return false }
+
+        for window in windows {
+            var titleRef: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(window,
+                                                kAXTitleAttribute as CFString,
+                                                &titleRef) == .success,
+                  let windowTitle = titleRef as? String,
+                  windowTitle.contains(title) else { continue }
+
+            AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+            AXUIElementSetAttributeValue(appElement,
+                                         kAXFrontmostAttribute as CFString,
+                                         kCFBooleanTrue)
+            return true
+        }
+        return false
     }
 }

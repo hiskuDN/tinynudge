@@ -23,7 +23,8 @@ class Notifier: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegat
 
         // Option B: activate target app immediately, no click needed
         if config.activateImmediately, let bundleID = config.activateBundleID {
-            AppActivator.activate(bundleID: bundleID, windowTitle: config.windowTitle)
+            AppActivator.activate(bundleID: bundleID, windowTitle: config.windowTitle,
+                                  ipcHook: config.ipcHook, projectPath: config.projectPath)
             exit(0)
         }
 
@@ -36,6 +37,8 @@ class Notifier: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegat
         var userInfo: [String: String] = [:]
         if let bundleID = config.activateBundleID { userInfo["activateBundleID"] = bundleID }
         if let windowTitle = config.windowTitle { userInfo["windowTitle"] = windowTitle }
+        if let ipcHook = config.ipcHook { userInfo["ipcHook"] = ipcHook }
+        if let projectPath = config.projectPath { userInfo["projectPath"] = projectPath }
         if !userInfo.isEmpty { n.userInfo = userInfo }
         NSUserNotificationCenter.default.deliver(n)
     }
@@ -44,7 +47,10 @@ class Notifier: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegat
         NSUserNotificationCenter.default.removeDeliveredNotification(notification)
         if let bundleID = notification.userInfo?["activateBundleID"] as? String {
             let windowTitle = notification.userInfo?["windowTitle"] as? String
-            AppActivator.activate(bundleID: bundleID, windowTitle: windowTitle)
+            let ipcHook = notification.userInfo?["ipcHook"] as? String
+            let projectPath = notification.userInfo?["projectPath"] as? String
+            AppActivator.activate(bundleID: bundleID, windowTitle: windowTitle,
+                                  ipcHook: ipcHook, projectPath: projectPath)
         }
         exit(0)
     }
@@ -56,10 +62,14 @@ class Notifier: NSObject, NSApplicationDelegate, NSUserNotificationCenterDelegat
         return true
     }
 
-    // Exit right after delivery — macOS will re-launch us on click
+    // Stay alive to handle clicks — NSUserNotification re-launch on click
+    // is broken on modern macOS (deprecated since macOS 11). Handle clicks
+    // via didActivate while still running, then exit after timeout.
     func userNotificationCenter(_ center: NSUserNotificationCenter,
                                 didDeliver notification: NSUserNotification) {
-        exit(0)
+        DispatchQueue.main.asyncAfter(deadline: .now() + config.timeout) {
+            exit(0)
+        }
     }
 
     // If the user clicks while we're still running
