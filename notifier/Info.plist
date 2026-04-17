@@ -22,5 +22,7 @@
     <string>NSApplication</string>
     <key>NSUserNotificationAlertStyle</key>
     <string>alert</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>tinynudge uses System Events to focus the correct window when you click a notification.</string>
 </dict>
 </plist>

@@ -28,5 +28,9 @@ cp notifier/Info.plist "$CONTENTS/Info.plist"
 mkdir -p "$CONTENTS/Resources"
 cp notifier/Icon.icns "$CONTENTS/Resources/Icon.icns"
 
+# Sign the bundle so Info.plist is bound into the signature.
+# Without this, macOS records the wrong identity for TCC (AXIsProcessTrusted = false).
+codesign --force --deep --sign - "$APP"
+
 echo "  Built $APP"
 echo "  Binary: $(file "$MACOS/tinynudge")"
