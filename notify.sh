@@ -9,6 +9,39 @@ AGENT="${1:-agent}"
 EVENT="${2:-stop}"
 OS="$(uname -s 2>/dev/null || echo Windows)"
 
+# Read JSON piped from Claude Code hooks (contains transcript_path for Stop events).
+# Skip if stdin is a terminal (manual invocation).
+HOOK_JSON=""
+if [[ ! -t 0 ]]; then
+  HOOK_JSON=$(cat)
+fi
+
+# Extract context from the permission hook JSON: what tool/command needs approval.
+# For Bash: shows the first line of the command (up to 60 chars).
+# For Write/Edit: shows "<tool>: <filename>".
+# Returns empty string if unavailable.
+permission_context() {
+  command -v jq &>/dev/null || return
+  [[ -z "$HOOK_JSON" ]] && return
+  local tool_name
+  tool_name=$(printf '%s' "$HOOK_JSON" | jq -r '.tool_name // empty' 2>/dev/null)
+  [[ -z "$tool_name" ]] && return
+  case "$tool_name" in
+    Bash)
+      printf '%s' "$HOOK_JSON" | jq -r '.tool_input.command // empty' 2>/dev/null \
+        | head -1 | cut -c1-60
+      ;;
+    Write|Edit|MultiEdit)
+      local file
+      file=$(printf '%s' "$HOOK_JSON" | jq -r '.tool_input.file_path // empty' 2>/dev/null | sed 's|.*/||')
+      [[ -n "$file" ]] && echo "${tool_name}: ${file}"
+      ;;
+    *)
+      echo "$tool_name"
+      ;;
+  esac
+}
+
 # Set to "true" to bring your editor to focus immediately when the notification
 # fires, instead of waiting for you to click it.
 ACTIVATE_IMMEDIATELY="${TINYNUDGE_ACTIVATE_IMMEDIATELY:-false}"
@@ -149,8 +182,11 @@ TITLE="$(agent_label "$AGENT")"
 case "$OS" in
   Darwin)
     case "$EVENT" in
-      permission) notify_macos "$TITLE" "Waiting for your approval" "Ping" ;;
-      *)          notify_macos "$TITLE" "Done" "Glass" ;;
+      permission)
+        ctx=$(permission_context)
+        notify_macos "$TITLE" "${ctx:-Waiting for your approval}" "Ping"
+        ;;
+      *) notify_macos "$TITLE" "Done" "Glass" ;;
     esac
     ;;
   Linux)
