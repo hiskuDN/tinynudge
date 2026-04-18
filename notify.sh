@@ -46,6 +46,14 @@ permission_context() {
 # fires, instead of waiting for you to click it.
 ACTIVATE_IMMEDIATELY="${TINYNUDGE_ACTIVATE_IMMEDIATELY:-false}"
 
+# Set to "true" to speak notifications aloud via StackVox (offline TTS).
+# Requires: pip install stackvox && stackvox serve
+# Optional: set TINYNUDGE_VOICE_NAME to a StackVox voice ID (default: af_heart)
+# Optional: set TINYNUDGE_VOICE_SPEED to playback speed (default: 1.1)
+VOICE_ENABLED="${TINYNUDGE_VOICE:-false}"
+VOICE_NAME="${TINYNUDGE_VOICE_NAME:-af_heart}"
+VOICE_SPEED="${TINYNUDGE_VOICE_SPEED:-1.1}"
+
 # Pretty-print the agent name for the notification title
 agent_label() {
   case "$1" in
@@ -55,6 +63,18 @@ agent_label() {
     codex)       echo "Codex" ;;
     *)           echo "$1" ;;
   esac
+}
+
+# Speak a message aloud via StackVox if enabled and the daemon is reachable.
+# Falls back silently if StackVox is not installed or daemon is not running.
+speak_notification() {
+  [[ "${VOICE_ENABLED}" != "true" ]] && return
+  local text="$1"
+  if command -v stackvox-say &>/dev/null; then
+    stackvox-say --voice "${VOICE_NAME}" --speed "${VOICE_SPEED}" "${text}" 2>/dev/null &
+  elif command -v stackvox &>/dev/null; then
+    stackvox say --voice "${VOICE_NAME}" --speed "${VOICE_SPEED}" "${text}" 2>/dev/null &
+  fi
 }
 
 notify_macos() {
@@ -185,8 +205,12 @@ case "$OS" in
       permission)
         ctx=$(permission_context)
         notify_macos "$TITLE" "${ctx:-Waiting for your approval}" "Ping"
+        speak_notification "${ctx:-Waiting for your approval}"
         ;;
-      *) notify_macos "$TITLE" "Done" "Glass" ;;
+      *)
+        notify_macos "$TITLE" "Done" "Glass"
+        speak_notification "Done"
+        ;;
     esac
     ;;
   Linux)
