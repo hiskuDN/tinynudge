@@ -29,6 +29,12 @@ chmod +x "$INSTALL_DIR/notify.sh"
 echo "  Installed notify.sh -> $INSTALL_DIR/notify.sh"
 NOTIFY="$INSTALL_DIR/notify.sh"
 
+# Copy example config only if no config exists yet (preserve user customisations on reinstall)
+if [[ ! -f "$INSTALL_DIR/config" && -f "$SCRIPT_DIR/notify.conf.example" ]]; then
+  cp "$SCRIPT_DIR/notify.conf.example" "$INSTALL_DIR/config"
+  echo "  Created config      -> $INSTALL_DIR/config"
+fi
+
 # Detect agents and wire up their hooks
 installed_any=false
 
@@ -107,6 +113,7 @@ fi
 echo ""
 echo "Done! Hooks are wired up."
 echo ""
-echo "Config:"
-echo "  Set TINYNUDGE_ACTIVATE_IMMEDIATELY=true to focus your editor without clicking."
+echo "Config: edit ~/.tinynudge/config to customise behaviour."
+echo "  TINYNUDGE_VOICE=true              — speak notifications aloud (requires StackVox)"
+echo "  TINYNUDGE_ACTIVATE_IMMEDIATELY=true — focus your editor without clicking"
 echo "To uninstall, run: ./uninstall.sh"

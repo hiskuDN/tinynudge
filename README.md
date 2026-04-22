@@ -75,6 +75,32 @@ export TINYNUDGE_ACTIVATE_IMMEDIATELY=true
 
 Add that to your shell profile.
 
+### Voice notifications
+
+tinynudge can speak notifications aloud using [StackVox](https://github.com/StackOneHQ/stackvox), an offline TTS library with ~13 ms latency.
+
+**Setup:**
+
+```bash
+pip install stackvox
+stackvox serve   # start the daemon (add to login items or a launch agent)
+```
+
+**Enable in your config** (`~/.tinynudge/config`):
+
+```bash
+TINYNUDGE_VOICE=true
+```
+
+Voice fires only when the banner shows — it's suppressed along with the banner when your editor is already in focus. For permission events, voice says *"Bash command needs approval"* or *"Edit: filename"* rather than reading the raw command aloud.
+
+Optional tuning (also in `~/.tinynudge/config`):
+
+```bash
+TINYNUDGE_VOICE_NAME=af_heart   # StackVox voice ID
+TINYNUDGE_VOICE_SPEED=1.1       # playback speed (1.0 = normal)
+```
+
 ## Sounds
 
 | Event | macOS | Linux | Windows |
