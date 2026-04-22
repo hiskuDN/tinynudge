@@ -9,6 +9,10 @@ AGENT="${1:-agent}"
 EVENT="${2:-stop}"
 OS="$(uname -s 2>/dev/null || echo Windows)"
 
+# Load user config (overrides defaults below).
+# Copy notify.conf.example to ~/.tinynudge/config to customise.
+[[ -f "${HOME}/.tinynudge/config" ]] && source "${HOME}/.tinynudge/config"
+
 # Read JSON piped from Claude Code hooks (contains transcript_path for Stop events).
 # Skip if stdin is a terminal (manual invocation).
 HOOK_JSON=""
@@ -42,9 +46,41 @@ permission_context() {
   esac
 }
 
+# Voice-friendly version of permission_context.
+# For Bash: returns a generic phrase instead of the raw command.
+# For Write/Edit/MultiEdit: same as permission_context (already concise).
+voice_permission_context() {
+  command -v jq &>/dev/null || return
+  [[ -z "$HOOK_JSON" ]] && return
+  local tool_name
+  tool_name=$(printf '%s' "$HOOK_JSON" | jq -r '.tool_name // empty' 2>/dev/null)
+  [[ -z "$tool_name" ]] && return
+  case "$tool_name" in
+    Bash)
+      echo "Bash command needs approval"
+      ;;
+    Write|Edit|MultiEdit)
+      local file
+      file=$(printf '%s' "$HOOK_JSON" | jq -r '.tool_input.file_path // empty' 2>/dev/null | sed 's|.*/||')
+      [[ -n "$file" ]] && echo "${tool_name}: ${file}"
+      ;;
+    *)
+      echo "$tool_name"
+      ;;
+  esac
+}
+
 # Set to "true" to bring your editor to focus immediately when the notification
 # fires, instead of waiting for you to click it.
 ACTIVATE_IMMEDIATELY="${TINYNUDGE_ACTIVATE_IMMEDIATELY:-false}"
+
+# Set to "true" to speak notifications aloud via StackVox (offline TTS).
+# Requires: pip install stackvox && stackvox serve
+# Optional: set TINYNUDGE_VOICE_NAME to a StackVox voice ID (default: af_heart)
+# Optional: set TINYNUDGE_VOICE_SPEED to playback speed (default: 1.1)
+VOICE_ENABLED="${TINYNUDGE_VOICE:-false}"
+VOICE_NAME="${TINYNUDGE_VOICE_NAME:-af_heart}"
+VOICE_SPEED="${TINYNUDGE_VOICE_SPEED:-1.1}"
 
 # Pretty-print the agent name for the notification title
 agent_label() {
@@ -57,10 +93,23 @@ agent_label() {
   esac
 }
 
+# Speak a message aloud via StackVox if enabled and the daemon is reachable.
+# Falls back silently if StackVox is not installed or daemon is not running.
+speak_notification() {
+  [[ "${VOICE_ENABLED}" != "true" ]] && return
+  local text="$1"
+  if command -v stackvox-say &>/dev/null; then
+    stackvox-say --voice "${VOICE_NAME}" --speed "${VOICE_SPEED}" "${text}" 2>/dev/null &
+  elif command -v stackvox &>/dev/null; then
+    stackvox say --voice "${VOICE_NAME}" --speed "${VOICE_SPEED}" "${text}" 2>/dev/null &
+  fi
+}
+
 notify_macos() {
   local title="$1"
   local message="$2"
   local sound="$3"
+  local voice_message="${4:-$message}"
 
   # Detect terminal / editor bundle ID for click-to-focus
   local bundle_id
@@ -151,10 +200,12 @@ notify_macos() {
     [[ "${EVENT}" == "permission" ]] && open_args+=(--has-action-button)
     # Launch via `open -a` so LaunchServices registers it — required for click-to-focus
     open -a "$app_bundle" "${open_args[@]}"
+    speak_notification "${voice_message}"
   else
     # Fallback: osascript notification + sound (no click-to-focus)
     afplay "/System/Library/Sounds/${sound}.aiff" 2>/dev/null &
     osascript -e "display notification \"${message}\" with title \"${title}\" sound name \"${sound}\"" 2>/dev/null
+    speak_notification "${voice_message}"
   fi
 }
 
@@ -184,7 +235,8 @@ case "$OS" in
     case "$EVENT" in
       permission)
         ctx=$(permission_context)
-        notify_macos "$TITLE" "${ctx:-Waiting for your approval}" "Ping"
+        voice_ctx=$(voice_permission_context)
+        notify_macos "$TITLE" "${ctx:-Waiting for your approval}" "Ping" "${voice_ctx:-Waiting for your approval}"
         ;;
       *) notify_macos "$TITLE" "Done" "Glass" ;;
     esac
